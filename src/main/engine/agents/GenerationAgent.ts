@@ -74,13 +74,33 @@ export class GenerationAgent {
       .filter((d): d is StrainDesign => !!d)
 
     designs.forEach((d) => this.ctx.upsertDesign(d))
-    this.ctx.log(
-      campaign.id,
-      'generation',
-      designs.length ? 'success' : 'warning',
-      `Generated ${designs.length} designs via ${strategy} strategy${literature ? ' (literature-grounded)' : ''}`,
-      { strategy }
-    )
+    if (designs.length === 0) {
+      // Make the failure diagnosable instead of a bland "0 designs": record the
+      // stop reason, output-token count, and a snippet of the raw model output.
+      const truncated = res.stopReason === 'max_tokens' || res.stopReason === 'length'
+      this.ctx.log(
+        campaign.id,
+        'generation',
+        'warning',
+        `Generated 0 designs via ${strategy} strategy${literature ? ' (literature-grounded)' : ''} — ` +
+          `no parseable design in model output (stop: ${res.stopReason ?? 'unknown'}, ` +
+          `${res.usage.outputTokens} output tokens)${truncated ? '; output was truncated — raise the model max output tokens' : ''}.`,
+        {
+          strategy,
+          stopReason: res.stopReason,
+          outputTokens: res.usage.outputTokens,
+          rawSnippet: res.text.slice(0, 400)
+        }
+      )
+    } else {
+      this.ctx.log(
+        campaign.id,
+        'generation',
+        'success',
+        `Generated ${designs.length} designs via ${strategy} strategy${literature ? ' (literature-grounded)' : ''}`,
+        { strategy }
+      )
+    }
     return designs
   }
 }

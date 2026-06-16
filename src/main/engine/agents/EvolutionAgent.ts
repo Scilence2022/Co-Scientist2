@@ -23,6 +23,7 @@ export class EvolutionAgent {
     if (!parents.length) return null
 
     let child: StrainDesign | null
+    let failureMeta: Record<string, unknown> = { strategy }
     if (this.ctx.demoMode) {
       child = demoEvolveDesign(campaign, parents, strategy, cycle * 13)
     } else {
@@ -44,11 +45,28 @@ export class EvolutionAgent {
       child = coerceDesign(parseJsonLoose<any>(res.text), campaign, 'evolved', () => this.ctx.newId())
       if (child) {
         child.lineage = { parentIds: parents.map((p) => p.id), strategy }
+      } else {
+        failureMeta = {
+          strategy,
+          stopReason: res.stopReason,
+          outputTokens: res.usage.outputTokens,
+          rawSnippet: res.text.slice(0, 400)
+        }
       }
     }
 
     if (!child) {
-      this.ctx.log(campaign.id, 'evolution', 'warning', `Evolution (${strategy}) produced no design`)
+      const stop = (failureMeta.stopReason as string) ?? 'unknown'
+      const truncated = stop === 'max_tokens' || stop === 'length'
+      this.ctx.log(
+        campaign.id,
+        'evolution',
+        'warning',
+        `Evolution (${strategy}) produced no parseable design (stop: ${stop})${
+          truncated ? ' — output truncated, raise the model max output tokens' : ''
+        }`,
+        failureMeta
+      )
       return null
     }
     this.ctx.upsertDesign(child)

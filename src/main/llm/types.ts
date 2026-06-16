@@ -25,6 +25,12 @@ export interface LLMResponse {
   text: string
   usage: LLMUsage
   model: string
+  /**
+   * Why generation stopped (e.g. 'end_turn', 'max_tokens', 'refusal' for
+   * Anthropic; 'stop', 'length' for OpenAI-compatible). Surfaced so agents can
+   * diagnose truncation when parsing yields nothing.
+   */
+  stopReason?: string
 }
 
 /** Provider-agnostic client used by all agents. */

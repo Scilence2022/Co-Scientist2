@@ -54,6 +54,7 @@ export class AnthropicClient implements LLMClient {
     return {
       text,
       model: message.model,
+      stopReason: message.stop_reason ?? undefined,
       usage: {
         inputTokens: message.usage.input_tokens,
         outputTokens: message.usage.output_tokens
