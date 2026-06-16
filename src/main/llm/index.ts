@@ -5,10 +5,19 @@ import { OpenAICompatibleClient } from './OpenAICompatibleClient'
 
 export * from './types'
 
+/**
+ * Pick the right LLM client for the current settings.
+ *
+ *   - 'anthropic' → AnthropicClient (uses the native Anthropic SDK, which
+ *     supports adaptive thinking + `output_config.effort`).
+ *   - anything else → OpenAICompatibleClient (chat-completions over
+ *     OpenAI-compatible HTTP, including OpenAI, DeepSeek, OpenRouter,
+ *     SiliconFlow, MiniMax, Google, GLM, local and custom endpoints).
+ */
 export function createLLMClient(settings: AppSettings): LLMClient {
-  return settings.llm.provider === 'openai-compatible'
-    ? new OpenAICompatibleClient(settings)
-    : new AnthropicClient(settings)
+  return settings.llm.provider === 'anthropic'
+    ? new AnthropicClient(settings)
+    : new OpenAICompatibleClient(settings)
 }
 
 /** Robust extraction of a JSON value embedded in model prose. */

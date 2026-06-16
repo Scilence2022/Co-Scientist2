@@ -9,6 +9,7 @@ const api: PreloadBridge = {
   getSettings: () => ipcRenderer.invoke('getSettings'),
   saveSettings: (settings) => ipcRenderer.invoke('saveSettings', settings),
   testMcp: (server) => ipcRenderer.invoke('testMcp', server),
+  pingLlm: () => ipcRenderer.invoke('pingLlm'),
 
   listCampaigns: () => ipcRenderer.invoke('listCampaigns'),
   createCampaign: (input) => ipcRenderer.invoke('createCampaign', input),

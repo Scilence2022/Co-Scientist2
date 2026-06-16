@@ -12,6 +12,7 @@ export function registerIpc(engine: Engine): void {
     getSettings: () => engine.getSettings(),
     saveSettings: (settings) => engine.saveSettings(settings),
     testMcp: (server) => engine.testMcp(server),
+    pingLlm: () => engine.pingLlm(),
 
     listCampaigns: () => engine.listCampaigns(),
     createCampaign: (input) => engine.createCampaign(input),

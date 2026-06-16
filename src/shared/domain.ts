@@ -486,7 +486,23 @@ export interface ActivityEvent {
 // Settings
 // ---------------------------------------------------------------------------
 
-export type LLMProvider = 'anthropic' | 'openai-compatible'
+/**
+ * LLM provider identifier. Must stay in sync with the catalogue in
+ * `shared/providers.ts` (PROVIDER_IDS) and the runtime `createLLMClient`
+ * selector.
+ */
+export type LLMProvider =
+  | 'anthropic'
+  | 'openai'
+  | 'deepseek'
+  | 'openrouter'
+  | 'siliconflow'
+  | 'minimax-cn'
+  | 'minimax-global'
+  | 'google'
+  | 'glm'
+  | 'local'
+  | 'openai-compatible'
 
 export interface ModelTierConfig {
   /** Model id used for quality-critical agents (generation/reflection/meta-review). */

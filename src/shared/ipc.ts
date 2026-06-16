@@ -51,12 +51,20 @@ export interface McpTestResult {
   toolCount?: number
 }
 
+/** Result of pinging the configured LLM provider. */
+export interface LlmPingResult {
+  ok: boolean
+  message: string
+  model?: string
+}
+
 /** Invoke channels: renderer → main, request/response. */
 export interface IpcApi {
   // Settings
   getSettings(): Promise<AppSettings>
   saveSettings(settings: AppSettings): Promise<AppSettings>
   testMcp(server: 'deepResearch' | 'codexomics'): Promise<McpTestResult>
+  pingLlm(): Promise<LlmPingResult>
 
   // Campaign lifecycle
   listCampaigns(): Promise<Campaign[]>

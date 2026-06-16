@@ -81,6 +81,20 @@ export class Engine {
     return { server, ok: res.ok, message: res.message, toolCount: res.toolCount }
   }
 
+  async pingLlm(): Promise<{ ok: boolean; message: string; model?: string }> {
+    try {
+      // Re-create the client so we always ping with the latest saved settings.
+      const fresh = createLLMClient(this.store.getSettings())
+      const reply = await fresh.ping()
+      return { ok: true, message: reply || 'ready', model: this.store.getSettings().llm.tiers.fastTierModel }
+    } catch (err) {
+      return {
+        ok: false,
+        message: err instanceof Error ? err.message : String(err)
+      }
+    }
+  }
+
   // -- Campaign CRUD --------------------------------------------------------
 
   listCampaigns(): Campaign[] {

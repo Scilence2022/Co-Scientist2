@@ -2,20 +2,41 @@ import type { AppSettings } from '@shared/domain'
 import { resolveMaxOutputTokens } from '@shared/models'
 import type { LLMClient, LLMRequest, LLMResponse } from './types'
 import { resolveModel } from './ModelRouter'
+import { getProvider, resolveBaseUrl, type ProviderDefinition } from '@shared/providers'
 
 /**
- * Minimal OpenAI-compatible chat-completions client (for users who route the
- * agents through a proxy, a local model, or another provider). Uses fetch so
- * there is no extra dependency. Temperature is honoured here (unlike the
- * Anthropic path, where it is removed on Opus 4.8).
+ * OpenAI-compatible chat-completions client.
+ *
+ * Drives every non-Anthropic provider in the catalogue. Honours provider
+ * defaults (base URL, headers) and any user override in `AppSettings.llm`.
+ * Temperature is honoured here (unlike the Anthropic path, where it is
+ * removed on Opus 4.8).
  */
 export class OpenAICompatibleClient implements LLMClient {
   private settings: AppSettings
+  private provider: ProviderDefinition | undefined
   private baseUrl: string
+  /** Provider-specific extra headers (e.g. OpenRouter's HTTP-Referer). */
+  private extraHeaders: Record<string, string>
 
   constructor(settings: AppSettings) {
     this.settings = settings
-    this.baseUrl = (settings.llm.baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '')
+    this.provider = getProvider(settings.llm.provider)
+    this.baseUrl = resolveBaseUrl(this.provider ?? { baseUrl: '' } as ProviderDefinition, settings.llm.baseUrl)
+    this.extraHeaders = this.buildHeaders()
+  }
+
+  private buildHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {}
+    const id = this.provider?.id
+    if (id === 'openrouter') {
+      // OpenRouter attribution headers (recommended for higher rate limits).
+      // The renderer can override by editing the request, but in main we set
+      // sensible defaults that satisfy the recommendation.
+      headers['HTTP-Referer'] = 'https://github.com/strain-co-scientist'
+      headers['X-Title'] = 'Strain Co-Scientist'
+    }
+    return headers
   }
 
   async complete(req: LLMRequest): Promise<LLMResponse> {
@@ -31,16 +52,25 @@ export class OpenAICompatibleClient implements LLMClient {
         { role: 'user', content: req.prompt }
       ]
     }
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...this.extraHeaders
+    }
+    // Local servers (Ollama) often run without auth — omit the header rather
+    // than send an empty string, which some servers reject.
+    if (this.settings.llm.apiKey.trim()) {
+      headers['Authorization'] = `Bearer ${this.settings.llm.apiKey}`
+    }
     const res = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.settings.llm.apiKey}`
-      },
+      headers,
       body: JSON.stringify(body)
     })
     if (!res.ok) {
-      throw new Error(`LLM request failed: ${res.status} ${await res.text()}`)
+      const errText = await res.text().catch(() => '')
+      throw new Error(
+        `LLM request failed (${this.provider?.label ?? this.settings.llm.provider} ${res.status}): ${errText || res.statusText}`
+      )
     }
     const json: any = await res.json()
     const text: string = json.choices?.[0]?.message?.content ?? ''
