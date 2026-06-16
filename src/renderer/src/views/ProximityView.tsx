@@ -23,7 +23,7 @@ export function ProximityView(): JSX.Element {
       <div className="card pad-lg">
         <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 10 }}>
           The Proximity agent groups related designs by intervention and content similarity. Colour = cluster, size = Elo.
-          Click a node to inspect the design.
+          Click a node to inspect the design. Scroll to zoom, drag to pan, or use the controls to fit the full map.
         </div>
         <ProximityGraph designs={active} selectedId={selectedDesignId} onSelect={openDesign} />
       </div>

@@ -256,6 +256,7 @@ function mergeSettings(base: AppSettings, raw: Partial<AppSettings>): AppSetting
       codexomics: { ...base.mcp.codexomics, ...raw.mcp?.codexomics }
     },
     run: { ...base.run, ...raw.run },
-    safety: { ...base.safety, ...raw.safety }
+    safety: { ...base.safety, ...raw.safety },
+    ui: { ...base.ui, ...raw.ui }
   }
 }

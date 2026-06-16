@@ -64,6 +64,68 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.45);
 
+  /* Scrollbar */
+  --scrollbar-thumb: #2a3742;
+  --scrollbar-thumb-hover: #38495a;
+
+  /* Graph */
+  --node-stroke-selected: #ffffff;
+  --scrim: rgba(6, 10, 14, 0.55);
+
   --sidebar-w: 216px;
   --topbar-h: 52px;
+}
+
+/*
+ * Light theme — a clean, paper-bright "lab notebook" palette. The teal accent
+ * carries over; surfaces invert to off-white with soft slate borders.
+ */
+:root[data-theme='light'] {
+  /* Surfaces */
+  --bg-app: #eef1f4;
+  --bg-surface: #ffffff;
+  --bg-surface-2: #f6f8fa;
+  --bg-elevated: #eef2f6;
+  --bg-input: #ffffff;
+  --bg-hover: #e7eef4;
+
+  /* Borders / lines */
+  --border: #dce2e8;
+  --border-strong: #c2ccd5;
+  --border-subtle: #e9edf1;
+
+  /* Text */
+  --text: #18222c;
+  --text-muted: #51616f;
+  --text-faint: #7a8693;
+  --text-inverse: #ffffff;
+
+  /* Accent — same muted teal, tuned for white backgrounds */
+  --accent: #2a9d8f;
+  --accent-strong: #1c8073;
+  --accent-dim: #2a7d74;
+  --accent-wash: rgba(42, 157, 143, 0.12);
+
+  /* Secondary */
+  --blue: #3f6fd6;
+  --violet: #6f63c4;
+  --amber: #b9821f;
+  --green: #2f9d5f;
+  --red: #c4544b;
+
+  /* Status */
+  --ok: #2f9d5f;
+  --warn: #b9821f;
+  --err: #c4544b;
+  --info: #3f6fd6;
+
+  --shadow-sm: 0 1px 2px rgba(20, 30, 40, 0.08);
+  --shadow-md: 0 4px 16px rgba(20, 30, 40, 0.12);
+  --shadow-lg: 0 12px 40px rgba(20, 30, 40, 0.18);
+
+  --scrollbar-thumb: #c8d2db;
+  --scrollbar-thumb-hover: #b0bcc7;
+
+  --node-stroke-selected: #18222c;
+  --scrim: rgba(40, 52, 64, 0.4);
 }

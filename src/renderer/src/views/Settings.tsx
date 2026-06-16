@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { IconCheck, IconRefresh } from '../components/Icons'
-import { AGENT_LABELS, type AgentRole, type AppSettings, type LLMProvider } from '@shared/domain'
+import {
+  AGENT_LABELS,
+  type AgentRole,
+  type AppSettings,
+  type LLMProvider,
+  type UiTheme
+} from '@shared/domain'
 import { modelCapabilities } from '@shared/models'
 import type { LlmPingResult, McpTestResult } from '@shared/ipc'
 import {
@@ -17,6 +23,11 @@ import {
 } from '@shared/providers'
 
 const OVERRIDABLE: AgentRole[] = ['generation', 'reflection', 'ranking', 'proximity', 'evolution', 'meta-review']
+
+const THEME_OPTIONS: { value: UiTheme; label: string }[] = [
+  { value: 'dark', label: 'Dark' },
+  { value: 'light', label: 'Light' }
+]
 
 /** Human-readable token count, e.g. 128000 → "128K", 1000000 → "1M". */
 function fmtTokens(n: number): string {
@@ -288,6 +299,36 @@ export function Settings(): JSX.Element {
             ))}
           </div>
         </details>
+      </div>
+
+      {/* Appearance */}
+      <div className="card pad-lg">
+        <div className="card-title" style={{ marginBottom: 6 }}>Appearance</div>
+        <p className="faint" style={{ fontSize: 'var(--fs-sm)', marginTop: 0, marginBottom: 14 }}>
+          Choose the interface colour theme. Applies instantly.
+        </p>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>UI style</label>
+          <div className="row gap-sm" role="radiogroup" aria-label="UI style">
+            {THEME_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                role="radio"
+                aria-checked={draft.ui.theme === opt.value}
+                className={`btn${draft.ui.theme === opt.value ? ' btn-primary' : ''}`}
+                onClick={() => {
+                  patch((d) => (d.ui.theme = opt.value))
+                  // Live preview; persisted on Save like every other setting.
+                  document.documentElement.setAttribute('data-theme', opt.value)
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <span className="hint">Light theme uses the same teal accent on bright surfaces.</span>
+        </div>
       </div>
 
       {/* Run */}

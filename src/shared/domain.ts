@@ -552,7 +552,13 @@ export interface AppSettings {
     /** Hard gate: reject designs that fail the safety criterion. */
     enforceBiosafety: boolean
   }
+  ui: {
+    /** Colour theme for the interface. */
+    theme: UiTheme
+  }
 }
+
+export type UiTheme = 'dark' | 'light'
 
 export const DEFAULT_SETTINGS: AppSettings = {
   llm: {
@@ -576,6 +582,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   safety: {
     enforceBiosafety: true
+  },
+  ui: {
+    theme: 'dark'
   }
 }
 

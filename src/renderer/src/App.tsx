@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore, type ViewKey } from './store/useStore'
 import {
   IconCampaigns,
@@ -35,13 +35,24 @@ export const NAV: { key: ViewKey; label: string; icon: (p: { size?: number }) =>
   { key: 'settings', label: 'Settings', icon: IconSettings }
 ]
 
+const SIDEBAR_MIN = 180
+const SIDEBAR_MAX = 420
+const SIDEBAR_KEY = 'sidebar-width'
+
 export default function App(): JSX.Element {
-  const { ready, view, init } = useStore()
+  const { ready, view, init, settings } = useStore()
+  const { width: sidebarW, startResize, resizing } = useSidebarWidth()
 
   useEffect(() => {
     void init()
     document.body.classList.add(`platform-${navigatorPlatform()}`)
   }, [init])
+
+  // Apply the selected colour theme to the document root.
+  useEffect(() => {
+    const theme = settings?.ui.theme ?? 'dark'
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [settings?.ui.theme])
 
   if (!ready) {
     return (
@@ -54,12 +65,67 @@ export default function App(): JSX.Element {
   }
 
   return (
-    <div className="app">
+    <div className="app" style={{ gridTemplateColumns: `${sidebarW}px 1fr` }}>
       <Sidebar />
       <TopBar />
       <main className="main">{renderView(view)}</main>
+      <div
+        className={`splitter${resizing ? ' dragging' : ''}`}
+        style={{ left: sidebarW }}
+        onPointerDown={startResize}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+      />
     </div>
   )
+}
+
+/** Persisted, drag-resizable sidebar width. */
+function useSidebarWidth(): {
+  width: number
+  resizing: boolean
+  startResize: (e: React.PointerEvent) => void
+} {
+  const [width, setWidth] = useState<number>(() => {
+    const saved = Number(localStorage.getItem(SIDEBAR_KEY))
+    return saved >= SIDEBAR_MIN && saved <= SIDEBAR_MAX ? saved : 216
+  })
+  const [resizing, setResizing] = useState(false)
+  const frame = useRef<number | null>(null)
+
+  const startResize = useCallback((e: React.PointerEvent) => {
+    e.preventDefault()
+    setResizing(true)
+    document.body.classList.add('is-resizing')
+
+    const onMove = (ev: PointerEvent) => {
+      if (frame.current != null) return
+      frame.current = requestAnimationFrame(() => {
+        frame.current = null
+        const next = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, ev.clientX))
+        setWidth(next)
+      })
+    }
+    const onUp = () => {
+      setResizing(false)
+      document.body.classList.remove('is-resizing')
+      if (frame.current != null) {
+        cancelAnimationFrame(frame.current)
+        frame.current = null
+      }
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      setWidth((w) => {
+        localStorage.setItem(SIDEBAR_KEY, String(w))
+        return w
+      })
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }, [])
+
+  return { width, resizing, startResize }
 }
 
 function renderView(view: ViewKey): JSX.Element {

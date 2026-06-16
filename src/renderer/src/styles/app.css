@@ -22,12 +22,12 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a3742;
+  background: var(--scrollbar-thumb);
   border-radius: 8px;
   border: 2px solid var(--bg-app);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #38495a;
+  background: var(--scrollbar-thumb-hover);
 }
 button {
   font-family: inherit;
@@ -52,6 +52,37 @@ a {
   grid-template-areas: 'sidebar topbar' 'sidebar main';
   height: 100vh;
   overflow: hidden;
+  position: relative;
+}
+
+/* ---------- Sidebar/content splitter ---------- */
+.splitter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  margin-left: -5px;
+  z-index: 30;
+  cursor: col-resize;
+  display: flex;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+}
+.splitter::before {
+  content: '';
+  width: 1px;
+  height: 100%;
+  background: transparent;
+  transition: background 0.12s;
+}
+.splitter:hover::before,
+.splitter.dragging::before {
+  background: var(--accent);
+  width: 2px;
+}
+body.is-resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 .sidebar {
   grid-area: sidebar;
@@ -522,7 +553,7 @@ textarea {
 .drawer-scrim {
   position: fixed;
   inset: 0;
-  background: rgba(6, 10, 14, 0.55);
+  background: var(--scrim);
   z-index: 40;
   animation: fade 0.15s ease;
 }
@@ -694,4 +725,57 @@ textarea {
 }
 .kvp dd {
   margin: 0;
+}
+
+/* ---------- Proximity graph ---------- */
+.graph-wrap {
+  position: relative;
+}
+.graph-canvas {
+  display: block;
+  width: 100%;
+  height: 62vh;
+  min-height: 360px;
+  border-radius: var(--r-md);
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  touch-action: none;
+}
+.graph-canvas.grabbing {
+  cursor: grabbing;
+}
+.graph-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 2;
+}
+.graph-zoom-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+.graph-zoom-btn:hover {
+  background: var(--bg-hover);
+}
+.graph-zoom-level {
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
 }
