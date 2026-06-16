@@ -2,9 +2,27 @@ import { useState } from 'react'
 import { useStore } from '../store/useStore'
 import { IconCheck, IconRefresh } from '../components/Icons'
 import { AGENT_LABELS, type AgentRole, type AppSettings, type LLMProvider } from '@shared/domain'
+import { modelCapabilities } from '@shared/models'
 import type { McpTestResult } from '@shared/ipc'
 
 const OVERRIDABLE: AgentRole[] = ['generation', 'reflection', 'ranking', 'proximity', 'evolution', 'meta-review']
+
+/** Human-readable token count, e.g. 128000 → "128K", 1000000 → "1M". */
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${+(n / 1_000_000).toFixed(n % 1_000_000 ? 1 : 0)}M`
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`
+  return String(n)
+}
+
+function ModelLimitsHint({ model }: { model: string }): JSX.Element {
+  const caps = modelCapabilities(model)
+  return (
+    <span className="hint">
+      Detected limits: {fmtTokens(caps.contextWindow)} context · {fmtTokens(caps.maxOutput)} max output. Requests are clamped to
+      this automatically.
+    </span>
+  )
+}
 
 export function Settings(): JSX.Element {
   const { settings, setSettings } = useStore()
@@ -79,16 +97,19 @@ export function Settings(): JSX.Element {
           <div className="field">
             <label>High-tier model (Generation / Reflection / Meta-review)</label>
             <input value={draft.llm.tiers.highTierModel} onChange={(e) => patch((d) => (d.llm.tiers.highTierModel = e.target.value))} />
+            <ModelLimitsHint model={draft.llm.tiers.highTierModel} />
           </div>
           <div className="field">
             <label>Fast-tier model (Ranking / Proximity / Evolution)</label>
             <input value={draft.llm.tiers.fastTierModel} onChange={(e) => patch((d) => (d.llm.tiers.fastTierModel = e.target.value))} />
+            <ModelLimitsHint model={draft.llm.tiers.fastTierModel} />
           </div>
         </div>
         <div className="grid grid-2">
           <div className="field">
-            <label>Max output tokens</label>
-            <input type="number" min={512} max={32000} value={draft.llm.maxTokens} onChange={(e) => patch((d) => (d.llm.maxTokens = +e.target.value))} />
+            <label>Max output tokens (fallback)</label>
+            <input type="number" min={512} max={384000} value={draft.llm.maxTokens} onChange={(e) => patch((d) => (d.llm.maxTokens = +e.target.value))} />
+            <span className="hint">Default ceiling when an agent doesn't request its own; always clamped to the model's max output.</span>
           </div>
           <div className="field">
             <label>Temperature (OpenAI-compatible only)</label>

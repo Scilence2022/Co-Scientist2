@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { AppSettings } from '@shared/domain'
+import { resolveMaxOutputTokens } from '@shared/models'
 import type { LLMClient, LLMRequest, LLMResponse } from './types'
 import { resolveModel } from './ModelRouter'
 
@@ -26,7 +27,9 @@ export class AnthropicClient implements LLMClient {
 
   async complete(req: LLMRequest): Promise<LLMResponse> {
     const model = resolveModel(req.agent, this.settings)
-    const maxTokens = req.maxTokens ?? this.settings.llm.maxTokens
+    // Adaptive output budget: honour the per-agent request but never exceed
+    // what this specific model can actually emit in one response.
+    const maxTokens = resolveMaxOutputTokens(model, req.maxTokens ?? this.settings.llm.maxTokens)
 
     // Built as `any` so newer API fields (output_config.effort, adaptive
     // thinking) pass through regardless of the installed SDK's static types.

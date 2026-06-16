@@ -54,13 +54,17 @@ export class GenerationAgent {
       existingTitles: existingTitles.slice(-20)
     })
 
+    // Budget scales with the number of designs requested: each full design is
+    // ~2.5K tokens of JSON, plus headroom for adaptive thinking. The client
+    // clamps this to the model's real max-output ceiling, so asking generously
+    // is safe — it prevents the truncated-JSON → 0-designs failure mode.
     const res = await this.ctx.llm.complete({
       agent: 'generation',
       system: SYSTEM_PREAMBLE,
       prompt,
       effort: 'high',
       think: true,
-      maxTokens: 8000
+      maxTokens: Math.max(16000, count * 3000 + 4000)
     })
 
     const parsed = parseJsonLoose<any[]>(res.text)

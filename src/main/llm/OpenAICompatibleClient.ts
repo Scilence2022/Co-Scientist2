@@ -1,4 +1,5 @@
 import type { AppSettings } from '@shared/domain'
+import { resolveMaxOutputTokens } from '@shared/models'
 import type { LLMClient, LLMRequest, LLMResponse } from './types'
 import { resolveModel } from './ModelRouter'
 
@@ -19,9 +20,11 @@ export class OpenAICompatibleClient implements LLMClient {
 
   async complete(req: LLMRequest): Promise<LLMResponse> {
     const model = resolveModel(req.agent, this.settings)
+    // Adaptive output budget: clamp to the model's real max-output ceiling
+    // (e.g. DeepSeek V4 emits up to 384K tokens, far above Claude's 128K).
     const body = {
       model,
-      max_tokens: req.maxTokens ?? this.settings.llm.maxTokens,
+      max_tokens: resolveMaxOutputTokens(model, req.maxTokens ?? this.settings.llm.maxTokens),
       temperature: this.settings.llm.temperature,
       messages: [
         { role: 'system', content: req.system },
