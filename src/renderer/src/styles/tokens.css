@@ -1,0 +1,69 @@
+/*
+ * Design tokens — a calm, professional "scientific workstation" palette.
+ * Restrained: ink/slate neutrals, one muted teal accent, no gradients or neon.
+ */
+:root {
+  /* Surfaces (dark ink) */
+  --bg-app: #0f141a;
+  --bg-surface: #151c24;
+  --bg-surface-2: #1a232d;
+  --bg-elevated: #1f2a36;
+  --bg-input: #121a22;
+  --bg-hover: #20303d;
+
+  /* Borders / lines */
+  --border: #26323d;
+  --border-strong: #34434f;
+  --border-subtle: #1d2832;
+
+  /* Text */
+  --text: #e6edf3;
+  --text-muted: #9bacbb;
+  --text-faint: #6b7c8c;
+  --text-inverse: #0f141a;
+
+  /* Accent — muted teal */
+  --accent: #3fb6a8;
+  --accent-strong: #4ccabb;
+  --accent-dim: #2a7d74;
+  --accent-wash: rgba(63, 182, 168, 0.12);
+
+  /* Secondary — calm slate-blue for charts */
+  --blue: #5b8def;
+  --violet: #8a7fd6;
+  --amber: #d8a64a;
+  --green: #4fb477;
+  --red: #d4685f;
+
+  /* Status */
+  --ok: #4fb477;
+  --warn: #d8a64a;
+  --err: #d4685f;
+  --info: #5b8def;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', 'Menlo', Consolas, monospace;
+
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-base: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+
+  /* Radius / spacing */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-xl: 14px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.45);
+
+  --sidebar-w: 216px;
+  --topbar-h: 52px;
+}

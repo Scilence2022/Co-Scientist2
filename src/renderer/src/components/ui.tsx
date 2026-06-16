@@ -1,0 +1,68 @@
+import type { CampaignStatus, DesignStatus, Review } from '@shared/domain'
+
+export function timeAgo(ts: number): string {
+  const s = Math.floor((Date.now() - ts) / 1000)
+  if (s < 60) return `${s}s ago`
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return `${Math.floor(s / 86400)}d ago`
+}
+
+export function clockTime(ts: number): string {
+  const d = new Date(ts)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+function pad(n: number): string {
+  return n.toString().padStart(2, '0')
+}
+
+export function DesignStatusBadge({ status }: { status: DesignStatus }): JSX.Element {
+  const map: Record<DesignStatus, { cls: string; label: string }> = {
+    draft: { cls: '', label: 'Draft' },
+    reviewing: { cls: 'blue', label: 'Reviewing' },
+    active: { cls: 'accent', label: 'In tournament' },
+    rejected: { cls: 'err', label: 'Rejected' },
+    flagged: { cls: 'warn', label: 'Flagged' }
+  }
+  const m = map[status]
+  return <span className={`badge ${m.cls}`}>{m.label}</span>
+}
+
+export function VerdictBadge({ verdict }: { verdict: Review['verdict'] }): JSX.Element {
+  const cls = verdict === 'pass' ? 'ok' : verdict === 'reject' ? 'err' : 'warn'
+  return <span className={`badge ${cls}`}>{verdict}</span>
+}
+
+export function CampaignStatusPill({ status }: { status: CampaignStatus }): JSX.Element {
+  const map: Record<CampaignStatus, { dot: string; label: string }> = {
+    draft: { dot: '', label: 'Draft' },
+    running: { dot: 'run', label: 'Running' },
+    paused: { dot: '', label: 'Paused' },
+    completed: { dot: 'ok', label: 'Completed' },
+    stopped: { dot: '', label: 'Stopped' },
+    error: { dot: 'err', label: 'Error' }
+  }
+  const m = map[status]
+  return (
+    <span className="status-pill">
+      <span className={`status-dot ${m.dot}`} />
+      {m.label}
+    </span>
+  )
+}
+
+export function OriginBadge({ origin }: { origin: string }): JSX.Element {
+  const map: Record<string, string> = { generated: '', evolved: 'blue', expert: 'warn' }
+  const label = origin === 'generated' ? 'Generated' : origin === 'evolved' ? 'Evolved' : 'Expert'
+  return <span className={`badge ${map[origin] ?? ''}`}>{label}</span>
+}
+
+export function Empty({ title, hint, icon }: { title: string; hint?: string; icon?: JSX.Element }): JSX.Element {
+  return (
+    <div className="empty">
+      {icon}
+      <div style={{ fontSize: 'var(--fs-md)', color: 'var(--text-muted)' }}>{title}</div>
+      {hint && <div style={{ maxWidth: 420 }}>{hint}</div>}
+    </div>
+  )
+}
