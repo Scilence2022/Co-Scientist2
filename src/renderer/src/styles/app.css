@@ -166,6 +166,7 @@ body.is-resizing {
   color: var(--text-muted);
   cursor: pointer;
   font-size: var(--fs-md);
+  font-weight: 500;
   border: 1px solid transparent;
   user-select: none;
 }
