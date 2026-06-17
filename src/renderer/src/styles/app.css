@@ -736,7 +736,8 @@ textarea {
   width: 100%;
   height: 62vh;
   min-height: 360px;
-  background: transparent;
+  background: var(--graph-bg);
+  border-radius: 8px;
   touch-action: none;
 }
 .graph-canvas.grabbing {
