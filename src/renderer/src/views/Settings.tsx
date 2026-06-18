@@ -458,15 +458,29 @@ function ModelsTab({
 
         <div className="grid grid-2">
           <div className="field">
-            <label>Max output tokens (fallback)</label>
-            <input
-              type="number"
-              min={512}
-              max={384000}
-              value={draft.llm.maxTokens}
-              onChange={(e) => patch((d) => (d.llm.maxTokens = +e.target.value))}
-            />
-            <span className="hint">Default ceiling when an agent doesn't request its own; always clamped to the model's max output.</span>
+            <label>Max output tokens</label>
+            <label className="checkbox-row" style={{ marginBottom: draft.llm.maxTokens > 0 ? 8 : 0 }}>
+              <input
+                type="checkbox"
+                checked={draft.llm.maxTokens <= 0}
+                onChange={(e) => patch((d) => (d.llm.maxTokens = e.target.checked ? 0 : 8192))}
+              />
+              Auto — use each model's detected max output
+            </label>
+            {draft.llm.maxTokens > 0 && (
+              <input
+                type="number"
+                min={512}
+                max={384000}
+                value={draft.llm.maxTokens}
+                onChange={(e) => patch((d) => (d.llm.maxTokens = +e.target.value))}
+              />
+            )}
+            <span className="hint">
+              {draft.llm.maxTokens > 0
+                ? "Caps the output budget when an agent doesn't request its own — still clamped down to the model's detected max output."
+                : "Each request uses the model's full detected max output. Uncheck to cap it lower (e.g. to reduce cost or latency)."}
+            </span>
           </div>
           <div className="field">
             <label>Temperature (OpenAI-compatible only)</label>
