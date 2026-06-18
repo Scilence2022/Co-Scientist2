@@ -674,7 +674,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     },
     overrides: {},
     temperature: 0.9,
-    maxTokens: 4096
+    maxTokens: 0
   },
   mcp: {
     deepResearch: { enabled: false, url: 'http://127.0.0.1:3000/api/mcp' },
