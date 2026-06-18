@@ -2,6 +2,7 @@ import { useStore } from '../store/useStore'
 import { NAV } from '../App'
 import { CampaignStatusPill } from '../components/ui'
 import { IconPause, IconPlay, IconStop } from '../components/Icons'
+import { getProvider } from '@shared/providers'
 
 export function TopBar(): JSX.Element {
   const { campaigns, selectedId, selectCampaign, view, snapshot, settings } = useStore()
@@ -17,7 +18,15 @@ export function TopBar(): JSX.Element {
 
   const mcpOn =
     (settings?.mcp.deepResearch.enabled ? 1 : 0) + (settings?.mcp.codexomics.enabled ? 1 : 0)
-  const hasApiKey = !!settings?.llm.apiKey
+  // Usable when the providers serving the configured tiers have a key (or are
+  // keyless local servers).
+  const llm = settings?.llm
+  const hasApiKey =
+    !!llm &&
+    [llm.tiers.highTier, llm.tiers.fastTier].every((ref) => {
+      const acct = llm.providers[ref.provider]
+      return !!acct?.apiKey?.trim() || getProvider(ref.provider)?.requiresApiKey === false
+    })
 
   return (
     <header className="topbar">

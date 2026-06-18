@@ -33,6 +33,7 @@ export function registerIpc(engine: Engine): void {
     saveSettings: (settings) => engine.saveSettings(settings),
     testMcp: (server) => engine.testMcp(server),
     pingLlm: () => engine.pingLlm(),
+    listProviderModels: (provider) => engine.listProviderModels(provider),
 
     regenerateOverview: (id) => engine.regenerateOverview(id),
 

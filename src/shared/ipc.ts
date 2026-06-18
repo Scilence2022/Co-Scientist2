@@ -15,7 +15,8 @@ import type {
   TaskRecord,
   MetaReview,
   Match,
-  TournamentConfig
+  TournamentConfig,
+  LLMProvider
 } from './domain'
 
 /** Payload to create a campaign (id/timestamps assigned by main). */
@@ -59,6 +60,15 @@ export interface LlmPingResult {
   model?: string
 }
 
+/** Result of refreshing a provider's available model list. */
+export interface ModelListResult {
+  ok: boolean
+  /** Discovered model ids (sorted). Empty on failure. */
+  models: string[]
+  /** Human-readable status / error message. */
+  message: string
+}
+
 /** Result of a manual research-overview (re)generation. */
 export interface OverviewGenResult {
   ok: boolean
@@ -92,6 +102,8 @@ export interface IpcApi {
   saveSettings(settings: AppSettings): Promise<AppSettings>
   testMcp(server: 'deepResearch' | 'codexomics'): Promise<McpTestResult>
   pingLlm(): Promise<LlmPingResult>
+  /** Refresh a provider's available models using its saved credentials. */
+  listProviderModels(provider: LLMProvider): Promise<ModelListResult>
 
   // Research overview
   regenerateOverview(campaignId: string): Promise<OverviewGenResult>

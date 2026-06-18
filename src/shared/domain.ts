@@ -574,25 +574,46 @@ export type LLMProvider =
   | 'minimax-global'
   | 'google'
   | 'glm'
+  | 'kimi'
   | 'local'
   | 'openai-compatible'
 
-export interface ModelTierConfig {
-  /** Model id used for quality-critical agents (generation/reflection/meta-review). */
-  highTierModel: string
-  /** Model id used for high-volume agents (ranking/proximity/evolution). */
-  fastTierModel: string
+/**
+ * A model selection that names both the provider that serves it and the model
+ * id. Tier defaults and per-agent overrides are ModelRefs, so different agents
+ * can be routed to models hosted by different providers.
+ */
+export interface ModelRef {
+  /** Which configured provider serves this model. */
+  provider: LLMProvider
+  /** Model id, e.g. "claude-opus-4-8" or "deepseek-chat". */
+  model: string
 }
 
-export interface AgentModelOverrides {
-  // Optional per-agent model id; falls back to tier defaults.
-  generation?: string
-  reflection?: string
-  ranking?: string
-  proximity?: string
-  evolution?: string
-  'meta-review'?: string
-  supervisor?: string
+export interface ModelTierConfig {
+  /** Model used for quality-critical agents (generation/reflection/meta-review). */
+  highTier: ModelRef
+  /** Model used for high-volume agents (ranking/proximity/evolution). */
+  fastTier: ModelRef
+}
+
+/** Optional per-agent model override; absent agents fall back to tier defaults. */
+export type AgentModelOverrides = Partial<Record<AgentRole, ModelRef>>
+
+/**
+ * Per-provider credentials and discovered models, configured on the Providers
+ * tab. The Model Selection tab assigns {@link ModelRef}s that point at these
+ * accounts.
+ */
+export interface ProviderAccountConfig {
+  /** Whether this provider is available for model selection. */
+  enabled: boolean
+  /** API key / token. May be empty for keyless local servers. */
+  apiKey: string
+  /** Base URL override; falls back to the catalogue default when empty. */
+  baseUrl?: string
+  /** Model ids discovered via the Providers-tab "Refresh models" button. */
+  fetchedModels?: string[]
 }
 
 export interface McpServerConfig {
@@ -604,9 +625,10 @@ export interface McpServerConfig {
 
 export interface AppSettings {
   llm: {
+    /** Default/active provider — seeds new model selections in the UI. */
     provider: LLMProvider
-    apiKey: string
-    baseUrl?: string
+    /** Per-provider credentials & discovered models (the Providers tab). */
+    providers: Partial<Record<LLMProvider, ProviderAccountConfig>>
     tiers: ModelTierConfig
     overrides: AgentModelOverrides
     /** Temperature for generation/evolution (exploration). */
@@ -636,11 +658,12 @@ export type UiTheme = 'dark' | 'light'
 export const DEFAULT_SETTINGS: AppSettings = {
   llm: {
     provider: 'anthropic',
-    apiKey: '',
-    baseUrl: undefined,
+    providers: {
+      anthropic: { enabled: true, apiKey: '' }
+    },
     tiers: {
-      highTierModel: 'claude-opus-4-8',
-      fastTierModel: 'claude-sonnet-4-6'
+      highTier: { provider: 'anthropic', model: 'claude-opus-4-8' },
+      fastTier: { provider: 'anthropic', model: 'claude-sonnet-4-6' }
     },
     overrides: {},
     temperature: 0.9,

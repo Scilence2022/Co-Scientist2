@@ -19,8 +19,11 @@ import type {
   AppSettings,
   Campaign,
   CampaignSnapshot,
+  LLMProvider,
   Match,
   MetaReview,
+  ModelRef,
+  ProviderAccountConfig,
   Review,
   StrainDesign,
   SystemStatistics,
@@ -250,12 +253,7 @@ export class Store {
 /** Deep-ish merge so older settings files gain new default keys. */
 function mergeSettings(base: AppSettings, raw: Partial<AppSettings>): AppSettings {
   return {
-    llm: {
-      ...base.llm,
-      ...raw.llm,
-      tiers: { ...base.llm.tiers, ...raw.llm?.tiers },
-      overrides: { ...base.llm.overrides, ...raw.llm?.overrides }
-    },
+    llm: migrateLlm(base.llm, (raw.llm ?? {}) as Record<string, unknown>),
     mcp: {
       deepResearch: { ...base.mcp.deepResearch, ...raw.mcp?.deepResearch },
       codexomics: { ...base.mcp.codexomics, ...raw.mcp?.codexomics }
@@ -264,4 +262,87 @@ function mergeSettings(base: AppSettings, raw: Partial<AppSettings>): AppSetting
     safety: { ...base.safety, ...raw.safety },
     ui: { ...base.ui, ...raw.ui }
   }
+}
+
+/**
+ * Migrate the persisted `llm` block to the multi-provider shape.
+ *
+ * Tolerates two legacy layouts:
+ *   - the original single-provider flat shape (`apiKey`/`baseUrl` at top level,
+ *     `tiers.highTierModel`/`fastTierModel` as bare strings, string overrides);
+ *   - the new shape (`providers` map, ModelRef tiers/overrides).
+ */
+function migrateLlm(base: AppSettings['llm'], raw: Record<string, any>): AppSettings['llm'] {
+  const legacyProvider = (raw.provider ?? base.provider) as LLMProvider
+
+  // Provider accounts: start from any stored map, normalising each entry.
+  const providers: Partial<Record<LLMProvider, ProviderAccountConfig>> = {}
+  for (const [id, acct] of Object.entries((raw.providers ?? {}) as Record<string, any>)) {
+    if (!acct || typeof acct !== 'object') continue
+    providers[id as LLMProvider] = {
+      enabled: acct.enabled ?? true,
+      apiKey: acct.apiKey ?? '',
+      ...(acct.baseUrl ? { baseUrl: acct.baseUrl } : {}),
+      ...(Array.isArray(acct.fetchedModels) ? { fetchedModels: acct.fetchedModels } : {})
+    }
+  }
+  // Seed the legacy single-provider credentials if they weren't migrated yet.
+  if ((raw.apiKey !== undefined || raw.baseUrl !== undefined) && !providers[legacyProvider]) {
+    providers[legacyProvider] = {
+      enabled: true,
+      apiKey: raw.apiKey ?? '',
+      ...(raw.baseUrl ? { baseUrl: raw.baseUrl } : {})
+    }
+  }
+  if (Object.keys(providers).length === 0) {
+    providers.anthropic = { enabled: true, apiKey: '' }
+  }
+
+  const tiers = {
+    highTier: toRef(raw.tiers?.highTier, raw.tiers?.highTierModel, legacyProvider, base.tiers.highTier),
+    fastTier: toRef(raw.tiers?.fastTier, raw.tiers?.fastTierModel, legacyProvider, base.tiers.fastTier)
+  }
+
+  const overrides: AppSettings['llm']['overrides'] = {}
+  for (const [agent, val] of Object.entries((raw.overrides ?? {}) as Record<string, any>)) {
+    const ref = toOverrideRef(val, legacyProvider)
+    if (ref) overrides[agent as keyof typeof overrides] = ref
+  }
+
+  return {
+    provider: legacyProvider,
+    providers,
+    tiers,
+    overrides,
+    temperature: raw.temperature ?? base.temperature,
+    maxTokens: raw.maxTokens ?? base.maxTokens
+  }
+}
+
+/** Resolve a tier ModelRef from either the new ref, a legacy model string, or the default. */
+function toRef(
+  newRef: any,
+  legacyModel: any,
+  legacyProvider: LLMProvider,
+  fallback: ModelRef
+): ModelRef {
+  if (newRef && typeof newRef === 'object' && typeof newRef.model === 'string' && newRef.model.trim()) {
+    return { provider: (newRef.provider ?? legacyProvider) as LLMProvider, model: newRef.model }
+  }
+  if (typeof legacyModel === 'string' && legacyModel.trim()) {
+    return { provider: legacyProvider, model: legacyModel }
+  }
+  return fallback
+}
+
+/** Resolve a per-agent override ModelRef, dropping empty entries. */
+function toOverrideRef(val: any, legacyProvider: LLMProvider): ModelRef | undefined {
+  if (!val) return undefined
+  if (typeof val === 'string') {
+    return val.trim() ? { provider: legacyProvider, model: val } : undefined
+  }
+  if (typeof val === 'object' && typeof val.model === 'string' && val.model.trim()) {
+    return { provider: (val.provider ?? legacyProvider) as LLMProvider, model: val.model }
+  }
+  return undefined
 }

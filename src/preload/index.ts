@@ -10,6 +10,7 @@ const api: PreloadBridge = {
   saveSettings: (settings) => ipcRenderer.invoke('saveSettings', settings),
   testMcp: (server) => ipcRenderer.invoke('testMcp', server),
   pingLlm: () => ipcRenderer.invoke('pingLlm'),
+  listProviderModels: (provider) => ipcRenderer.invoke('listProviderModels', provider),
 
   regenerateOverview: (id) => ipcRenderer.invoke('regenerateOverview', id),
 

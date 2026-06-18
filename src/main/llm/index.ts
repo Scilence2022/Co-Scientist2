@@ -1,23 +1,75 @@
-import type { AppSettings } from '@shared/domain'
-import type { LLMClient } from './types'
+import type { AppSettings, LLMProvider } from '@shared/domain'
+import { getProvider } from '@shared/providers'
+import type { ClientConfig, LLMClient, LLMRequest, LLMResponse } from './types'
 import { AnthropicClient } from './AnthropicClient'
 import { OpenAICompatibleClient } from './OpenAICompatibleClient'
+import { resolveModelRef } from './ModelRouter'
 
 export * from './types'
+export { resolveModelRef } from './ModelRouter'
+export { listModels } from './listModels'
+
+/** Derive a single provider account's {@link ClientConfig} from settings. */
+export function clientConfig(settings: AppSettings, provider: LLMProvider): ClientConfig {
+  const account = settings.llm.providers[provider]
+  const def = getProvider(provider)
+  const override = account?.baseUrl?.trim()
+  return {
+    provider,
+    apiKey: account?.apiKey ?? '',
+    baseUrl: override || def?.baseUrl || undefined,
+    temperature: settings.llm.temperature,
+    maxTokensFallback: settings.llm.maxTokens
+  }
+}
+
+/** Build the concrete client for a provider account. */
+function buildClient(settings: AppSettings, provider: LLMProvider): LLMClient {
+  const cfg = clientConfig(settings, provider)
+  return provider === 'anthropic' ? new AnthropicClient(cfg) : new OpenAICompatibleClient(cfg)
+}
 
 /**
- * Pick the right LLM client for the current settings.
+ * Provider-routing LLM client.
  *
- *   - 'anthropic' → AnthropicClient (uses the native Anthropic SDK, which
- *     supports adaptive thinking + `output_config.effort`).
- *   - anything else → OpenAICompatibleClient (chat-completions over
- *     OpenAI-compatible HTTP, including OpenAI, DeepSeek, OpenRouter,
- *     SiliconFlow, MiniMax, Google, GLM, local and custom endpoints).
+ * Implements {@link LLMClient} so agents keep calling `complete(req)` unchanged,
+ * but each request is dispatched to the provider that serves the agent's
+ * resolved {@link import('@shared/domain').ModelRef}. Per-provider clients are
+ * built lazily and cached, so a campaign can mix (e.g.) Anthropic Opus for the
+ * high tier with DeepSeek for the fast tier.
  */
+export class LlmRouter implements LLMClient {
+  private settings: AppSettings
+  private cache = new Map<LLMProvider, LLMClient>()
+
+  constructor(settings: AppSettings) {
+    this.settings = settings
+  }
+
+  private clientFor(provider: LLMProvider): LLMClient {
+    let client = this.cache.get(provider)
+    if (!client) {
+      client = buildClient(this.settings, provider)
+      this.cache.set(provider, client)
+    }
+    return client
+  }
+
+  async complete(req: LLMRequest): Promise<LLMResponse> {
+    const ref = resolveModelRef(req.agent, this.settings)
+    return this.clientFor(ref.provider).complete({ ...req, model: ref.model })
+  }
+
+  /** Ping the provider serving the fast tier (the cheapest configured model). */
+  async ping(): Promise<string> {
+    const ref = this.settings.llm.tiers.fastTier
+    return this.clientFor(ref.provider).ping(ref.model)
+  }
+}
+
+/** Build the routing LLM client for the current settings. */
 export function createLLMClient(settings: AppSettings): LLMClient {
-  return settings.llm.provider === 'anthropic'
-    ? new AnthropicClient(settings)
-    : new OpenAICompatibleClient(settings)
+  return new LlmRouter(settings)
 }
 
 /** Robust extraction of a JSON value embedded in model prose. */

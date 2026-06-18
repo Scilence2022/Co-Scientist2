@@ -4,6 +4,7 @@ import type {
   Campaign,
   CampaignSnapshot,
   CampaignStatus,
+  LLMProvider,
   Review,
   StrainDesign
 } from '@shared/domain'
@@ -14,10 +15,12 @@ import type {
   EngineEvent,
   ExpertDesignInput,
   ExpertReviewInput,
-  McpTestResult
+  McpTestResult,
+  ModelListResult
 } from '@shared/ipc'
+import { getProvider } from '@shared/providers'
 import { Store } from '../memory/Store'
-import { createLLMClient, type LLMClient } from '../llm'
+import { createLLMClient, listModels, type LLMClient } from '../llm'
 import { McpManager } from '../mcp/McpManager'
 import { DeepResearchClient } from '../mcp/DeepResearchClient'
 import { CodexomicsClient } from '../mcp/CodexomicsClient'
@@ -87,13 +90,22 @@ export class Engine {
       // Re-create the client so we always ping with the latest saved settings.
       const fresh = createLLMClient(this.store.getSettings())
       const reply = await fresh.ping()
-      return { ok: true, message: reply || 'ready', model: this.store.getSettings().llm.tiers.fastTierModel }
+      return { ok: true, message: reply || 'ready', model: this.store.getSettings().llm.tiers.fastTier.model }
     } catch (err) {
       return {
         ok: false,
         message: err instanceof Error ? err.message : String(err)
       }
     }
+  }
+
+  /** Refresh a provider's available models using its saved credentials. */
+  async listProviderModels(provider: LLMProvider): Promise<ModelListResult> {
+    const settings = this.store.getSettings()
+    const account = settings.llm.providers[provider]
+    const def = getProvider(provider)
+    const baseUrl = account?.baseUrl?.trim() || def?.baseUrl || ''
+    return listModels(provider, account?.apiKey ?? '', baseUrl)
   }
 
   // -- Campaign CRUD --------------------------------------------------------

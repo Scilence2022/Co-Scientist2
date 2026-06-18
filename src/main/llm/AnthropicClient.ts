@@ -1,8 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { AppSettings } from '@shared/domain'
 import { resolveMaxOutputTokens } from '@shared/models'
-import type { LLMClient, LLMRequest, LLMResponse } from './types'
-import { resolveModel } from './ModelRouter'
+import type { ClientConfig, LLMClient, LLMRequest, LLMResponse } from './types'
 
 /**
  * Anthropic-backed LLM client.
@@ -12,24 +10,27 @@ import { resolveModel } from './ModelRouter'
  *   We steer depth via `effort` + adaptive thinking instead.
  * - We always stream and collect the final message to stay clear of HTTP
  *   timeouts on longer generations (research overviews, full reviews).
+ *
+ * Built from a {@link ClientConfig} for a single provider account; the model id
+ * for each request is supplied by the router via `req.model`.
  */
 export class AnthropicClient implements LLMClient {
   private client: Anthropic
-  private settings: AppSettings
+  private cfg: ClientConfig
 
-  constructor(settings: AppSettings) {
-    this.settings = settings
+  constructor(cfg: ClientConfig) {
+    this.cfg = cfg
     this.client = new Anthropic({
-      apiKey: settings.llm.apiKey,
-      ...(settings.llm.baseUrl ? { baseURL: settings.llm.baseUrl } : {})
+      apiKey: cfg.apiKey,
+      ...(cfg.baseUrl ? { baseURL: cfg.baseUrl } : {})
     })
   }
 
   async complete(req: LLMRequest): Promise<LLMResponse> {
-    const model = resolveModel(req.agent, this.settings)
+    const model = req.model ?? ''
     // Adaptive output budget: honour the per-agent request but never exceed
     // what this specific model can actually emit in one response.
-    const maxTokens = resolveMaxOutputTokens(model, req.maxTokens ?? this.settings.llm.maxTokens)
+    const maxTokens = resolveMaxOutputTokens(model, req.maxTokens ?? this.cfg.maxTokensFallback)
 
     // Built as `any` so newer API fields (output_config.effort, adaptive
     // thinking) pass through regardless of the installed SDK's static types.
@@ -62,9 +63,9 @@ export class AnthropicClient implements LLMClient {
     }
   }
 
-  async ping(): Promise<string> {
+  async ping(model = ''): Promise<string> {
     const res = await this.client.messages.create({
-      model: this.settings.llm.tiers.fastTierModel,
+      model,
       max_tokens: 16,
       messages: [{ role: 'user', content: 'Reply with the single word: ready' }]
     })

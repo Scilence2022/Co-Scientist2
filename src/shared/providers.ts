@@ -19,6 +19,8 @@
  *    `domain.ts`.
  */
 
+import type { LLMProvider, ModelRef } from './domain'
+
 export type ProviderGroup = 'official' | 'openai-compatible' | 'regional' | 'self-hosted' | 'custom'
 
 export interface ModelPreset {
@@ -155,8 +157,28 @@ export const PROVIDERS: ProviderDefinition[] = [
     description: 'SiliconFlow hosted OpenAI-compatible inference. Many open-source models.'
   },
   {
+    id: 'kimi',
+    label: 'Kimi (Moonshot)',
+    group: 'regional',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    envHint: 'MOONSHOT_API_KEY',
+    requiresApiKey: true,
+    customBaseUrl: true,
+    customModels: true,
+    highTierModels: [
+      { id: 'kimi-k2-0711-preview', label: 'Kimi K2', hint: 'Latest MoE flagship, long context' },
+      { id: 'moonshot-v1-128k', label: 'Moonshot v1 128K' },
+      { id: 'moonshot-v1-32k', label: 'Moonshot v1 32K' }
+    ],
+    fastTierModels: [
+      { id: 'moonshot-v1-32k', label: 'Moonshot v1 32K' },
+      { id: 'moonshot-v1-8k', label: 'Moonshot v1 8K' }
+    ],
+    description: 'Moonshot AI (Kimi) — OpenAI-compatible. Use api.moonshot.ai for the global endpoint.'
+  },
+  {
     id: 'minimax-cn',
-    label: 'MiniMax (CN)',
+    label: 'MiniMax (Local)',
     group: 'regional',
     baseUrl: 'https://api.MiniMax.chat/v1',
     envHint: 'MiniMax_API_KEY',
@@ -265,6 +287,33 @@ export const PROVIDERS: ProviderDefinition[] = [
 
 export const PROVIDER_IDS = PROVIDERS.map((p) => p.id)
 
+/**
+ * Display order for the Settings UI — roughly by industry influence, with the
+ * self-hosted (Local) and Custom escape hatches last. Ids not listed here fall
+ * back to the end, preserving catalogue order.
+ */
+const PROVIDER_DISPLAY_ORDER: string[] = [
+  'openai',
+  'anthropic',
+  'google',
+  'deepseek',
+  'openrouter',
+  'glm',
+  'kimi',
+  'minimax-global',
+  'minimax-cn',
+  'siliconflow',
+  'local',
+  'openai-compatible'
+]
+
+/** Providers in display order (see {@link PROVIDER_DISPLAY_ORDER}). */
+export const PROVIDERS_ORDERED: ProviderDefinition[] = [...PROVIDERS].sort((a, b) => {
+  const ia = PROVIDER_DISPLAY_ORDER.indexOf(a.id)
+  const ib = PROVIDER_DISPLAY_ORDER.indexOf(b.id)
+  return (ia === -1 ? Number.MAX_SAFE_INTEGER : ia) - (ib === -1 ? Number.MAX_SAFE_INTEGER : ib)
+})
+
 const PROVIDER_INDEX: Record<string, ProviderDefinition> = Object.fromEntries(
   PROVIDERS.map((p) => [p.id, p])
 )
@@ -307,4 +356,32 @@ export function defaultHighTierModel(provider: ProviderDefinition): string {
 /** Pick a sensible default fast-tier model for a provider. */
 export function defaultFastTierModel(provider: ProviderDefinition): string {
   return provider.fastTierModels[0]?.id ?? provider.highTierModels[0]?.id ?? ''
+}
+
+/** Build the default {@link ModelRef} for a provider's high or fast tier. */
+export function defaultModelRef(provider: ProviderDefinition, tier: 'high' | 'fast'): ModelRef {
+  return {
+    provider: provider.id as LLMProvider,
+    model: tier === 'high' ? defaultHighTierModel(provider) : defaultFastTierModel(provider)
+  }
+}
+
+/**
+ * Suggested model presets for a provider, merged with any models discovered via
+ * the Providers-tab refresh. Used to populate the Model Selection comboboxes.
+ */
+export function providerModelOptions(
+  provider: ProviderDefinition | undefined,
+  fetched: string[] | undefined
+): ModelPreset[] {
+  const presets = provider ? [...provider.highTierModels, ...provider.fastTierModels] : []
+  const seen = new Set(presets.map((m) => m.id))
+  const merged = [...presets]
+  for (const id of fetched ?? []) {
+    if (!seen.has(id)) {
+      merged.push({ id, label: id })
+      seen.add(id)
+    }
+  }
+  return merged
 }
