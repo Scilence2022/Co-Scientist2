@@ -612,8 +612,15 @@ export interface ProviderAccountConfig {
   apiKey: string
   /** Base URL override; falls back to the catalogue default when empty. */
   baseUrl?: string
-  /** Model ids discovered via the Providers-tab "Refresh models" button. */
+  /** Full model-id list discovered via the Providers-tab "Refresh models" button. */
   fetchedModels?: string[]
+  /**
+   * Curated subset of {@link fetchedModels} the user enabled for selection on
+   * the Providers tab. Only these models are offered on the Model Selection
+   * tab. Empty/undefined falls back to the discovered list, then the catalogue
+   * presets.
+   */
+  selectedModels?: string[]
 }
 
 export interface McpServerConfig {

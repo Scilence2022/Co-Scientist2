@@ -16,8 +16,10 @@ import {
   PROVIDERS_ORDERED,
   defaultFastTierModel,
   defaultHighTierModel,
+  defaultSelectedModels,
+  effectiveModelIds,
   getProvider,
-  providerModelOptions,
+  modelLabelFor,
   type ProviderDefinition
 } from '@shared/providers'
 
@@ -119,6 +121,10 @@ export function Settings(): JSX.Element {
       const acct = (next.llm.providers[id] ??= { enabled: true, apiKey: '' })
       acct.fetchedModels = res.models
       acct.enabled = true
+      // Keep any still-available prior selection; otherwise seed the default
+      // curated subset (latest few presets, capped).
+      const kept = acct.selectedModels?.filter((m) => res.models.includes(m)) ?? []
+      acct.selectedModels = kept.length ? kept : defaultSelectedModels(getProvider(id), res.models)
       setDraft(next)
       const saved2 = await window.api.saveSettings(next)
       setSettings(saved2)
@@ -204,6 +210,7 @@ function ProvidersTab({
             onToggle={(v) => mutateAccount(provider.id as LLMProvider, (a) => (a.enabled = v))}
             onKey={(v) => mutateAccount(provider.id as LLMProvider, (a) => (a.apiKey = v))}
             onUrl={(v) => mutateAccount(provider.id as LLMProvider, (a) => (a.baseUrl = v || undefined))}
+            onSelectModels={(ids) => mutateAccount(provider.id as LLMProvider, (a) => (a.selectedModels = ids))}
             onRefresh={() => onRefresh(provider.id as LLMProvider)}
           />
         </div>
@@ -219,6 +226,7 @@ function ProviderCard({
   onToggle,
   onKey,
   onUrl,
+  onSelectModels,
   onRefresh
 }: {
   provider: ProviderDefinition
@@ -227,6 +235,7 @@ function ProviderCard({
   onToggle: (v: boolean) => void
   onKey: (v: string) => void
   onUrl: (v: string) => void
+  onSelectModels: (ids: string[]) => void
   onRefresh: () => void
 }): JSX.Element {
   const enabled = account?.enabled ?? false
@@ -285,17 +294,91 @@ function ProviderCard({
             </div>
           </div>
           {fetchState && fetchState !== 'loading' && (
-            <div className={`badge ${fetchState.ok ? 'ok' : 'err'}`} style={{ display: 'inline-flex' }}>
+            <div
+              className={`badge ${fetchState.ok ? 'ok' : 'err'}`}
+              style={{ display: 'inline-flex', marginBottom: fetchState.ok ? 10 : 0 }}
+            >
               {fetchState.ok ? `Connected · ${fetchState.models.length} models` : `Failed: ${fetchState.message}`}
             </div>
           )}
           {account?.fetchedModels?.length ? (
-            <span className="hint" style={{ display: 'block', marginTop: 6 }}>
-              {account.fetchedModels.length} models cached and available for selection.
+            <ModelPicker
+              provider={provider}
+              fetched={account.fetchedModels}
+              selected={account.selectedModels ?? []}
+              onChange={onSelectModels}
+            />
+          ) : (
+            <span className="hint" style={{ display: 'block', marginTop: 4 }}>
+              Refresh to load this provider's live model list, or type a custom model id on the Model Selection tab.
             </span>
-          ) : null}
+          )}
         </>
       )}
+    </div>
+  )
+}
+
+function ModelPicker({
+  provider,
+  fetched,
+  selected,
+  onChange
+}: {
+  provider: ProviderDefinition
+  fetched: string[]
+  selected: string[]
+  onChange: (ids: string[]) => void
+}): JSX.Element {
+  const [filter, setFilter] = useState('')
+  const selSet = new Set(selected)
+  const needle = filter.trim().toLowerCase()
+  const shown = needle ? fetched.filter((id) => id.toLowerCase().includes(needle)) : fetched
+
+  const toggle = (id: string) => {
+    onChange(selSet.has(id) ? selected.filter((x) => x !== id) : [...selected, id])
+  }
+
+  return (
+    <div className="model-picker">
+      <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+        <span className="hint">
+          {selected.length} of {fetched.length} models selected for use
+        </span>
+        <span className="spacer" />
+        <button type="button" className="btn btn-sm" onClick={() => onChange(defaultSelectedModels(provider, fetched))}>
+          Latest {Math.min(5, fetched.length)}
+        </button>
+        <button type="button" className="btn btn-sm" onClick={() => onChange([...fetched])}>
+          Select all
+        </button>
+        <button type="button" className="btn btn-sm" onClick={() => onChange([])}>
+          Clear
+        </button>
+      </div>
+      <input
+        className="model-filter"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        placeholder={`Filter ${fetched.length} models…`}
+      />
+      <div className="model-checklist">
+        {shown.map((id) => {
+          const label = modelLabelFor(provider, id)
+          return (
+            <label key={id} className="model-check">
+              <input type="checkbox" checked={selSet.has(id)} onChange={() => toggle(id)} />
+              <span className="model-check-id">{id}</span>
+              {label !== id && <span className="model-check-label">{label}</span>}
+            </label>
+          )
+        })}
+        {shown.length === 0 && (
+          <span className="hint" style={{ padding: '8px 10px' }}>
+            No models match “{filter}”.
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -454,53 +537,85 @@ function ModelRefField({
   onChange: (ref: ModelRef) => void
   onClear?: () => void
 }): JSX.Element {
-  const listId = useMemo(() => `models-${label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`, [label])
-  const provDef = getProvider(value.provider)
-  const options = providerModelOptions(provDef, accounts[value.provider]?.fetchedModels)
+  const isOverride = !!onClear
+  // For overrides with no committed model, the provider is held locally so the
+  // dropdown doesn't snap back to the tier default before a model is picked.
+  const [prov, setProv] = useState<LLMProvider>(value.provider)
+  const [custom, setCustom] = useState(false)
+  useEffect(() => {
+    if (value.model) setProv(value.provider)
+  }, [value.provider, value.model])
+
+  const activeProvider = value.model ? value.provider : prov
+  const activeDef = getProvider(activeProvider)
+  const ids = effectiveModelIds(activeDef, accounts[activeProvider])
+  const curModel = value.provider === activeProvider ? value.model : ''
+  // Keep a committed-but-unlisted model (e.g. a custom id) visible in the list.
+  const listedIds = curModel && !ids.includes(curModel) ? [curModel, ...ids] : ids
+  const allowCustom = activeDef?.customModels ?? true
 
   const changeProvider = (id: LLMProvider) => {
+    setCustom(false)
+    setProv(id)
     const def = getProvider(id)
-    const model = def ? (defaultTier === 'high' ? defaultHighTierModel(def) : defaultFastTierModel(def)) : ''
-    onChange({ provider: id, model })
+    if (isOverride) {
+      onChange({ provider: id, model: '' })
+      return
+    }
+    const next = effectiveModelIds(def, accounts[id])
+    const fallback = def ? (defaultTier === 'high' ? defaultHighTierModel(def) : defaultFastTierModel(def)) : ''
+    onChange({ provider: id, model: next[0] ?? fallback })
+  }
+
+  const changeModel = (v: string) => {
+    if (v === '__custom__') {
+      setCustom(true)
+      return
+    }
+    setCustom(false)
+    onChange({ provider: activeProvider, model: v })
   }
 
   return (
     <div className="field">
       <label>{label}</label>
       <div className="row" style={{ gap: 6 }}>
-        <select
-          value={value.provider}
-          onChange={(e) => changeProvider(e.target.value as LLMProvider)}
-          style={{ flex: '0 0 36%' }}
-        >
+        <select value={activeProvider} onChange={(e) => changeProvider(e.target.value as LLMProvider)} style={{ flex: '0 0 36%' }}>
           {selectable.map((p) => (
             <option key={p.id} value={p.id}>
               {p.label}
             </option>
           ))}
         </select>
-        <input
-          list={options.length > 0 ? listId : undefined}
-          value={value.model}
-          onChange={(e) => onChange({ provider: value.provider, model: e.target.value })}
-          placeholder={placeholder ?? 'model id'}
-        />
+        <select value={custom ? '__custom__' : curModel} onChange={(e) => changeModel(e.target.value)} style={{ flex: 1 }}>
+          {isOverride && <option value="">{placeholder ?? '(use tier default)'}</option>}
+          {listedIds.length === 0 && !isOverride && (
+            <option value="" disabled>
+              No models — refresh on Providers tab
+            </option>
+          )}
+          {listedIds.map((id) => (
+            <option key={id} value={id}>
+              {modelLabelFor(activeDef, id)}
+            </option>
+          ))}
+          {allowCustom && <option value="__custom__">Custom model id…</option>}
+        </select>
         {onClear && (
           <button type="button" className="btn btn-sm" title="Clear override (use tier default)" onClick={onClear}>
             Default
           </button>
         )}
       </div>
-      {options.length > 0 && (
-        <datalist id={listId}>
-          {options.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-        </datalist>
+      {custom && (
+        <input
+          value={curModel}
+          autoFocus
+          placeholder="custom model id (e.g. gpt-4o, deepseek-chat)"
+          onChange={(e) => onChange({ provider: activeProvider, model: e.target.value })}
+        />
       )}
-      {value.model.trim() ? <ModelLimitsHint model={value.model} /> : null}
+      {curModel.trim() ? <ModelLimitsHint model={curModel} /> : null}
     </div>
   )
 }

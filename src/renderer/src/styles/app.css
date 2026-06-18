@@ -691,6 +691,57 @@ textarea {
   font-size: var(--fs-xs);
   line-height: 1.4;
 }
+
+/* ---------- Provider model picker ---------- */
+.model-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.model-filter {
+  width: 100%;
+}
+.model-checklist {
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.model-check {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+.model-check:hover {
+  background: var(--bg-hover);
+}
+.model-check input {
+  width: auto;
+  flex-shrink: 0;
+  align-self: center;
+  margin: 0;
+}
+.model-check-id {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-xs);
+  color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.model-check-label {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 .kbd-list {
   display: flex;
   flex-direction: column;

@@ -283,7 +283,8 @@ function migrateLlm(base: AppSettings['llm'], raw: Record<string, any>): AppSett
       enabled: acct.enabled ?? true,
       apiKey: acct.apiKey ?? '',
       ...(acct.baseUrl ? { baseUrl: acct.baseUrl } : {}),
-      ...(Array.isArray(acct.fetchedModels) ? { fetchedModels: acct.fetchedModels } : {})
+      ...(Array.isArray(acct.fetchedModels) ? { fetchedModels: acct.fetchedModels } : {}),
+      ...(Array.isArray(acct.selectedModels) ? { selectedModels: acct.selectedModels } : {})
     }
   }
   // Seed the legacy single-provider credentials if they weren't migrated yet.

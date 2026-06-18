@@ -366,22 +366,67 @@ export function defaultModelRef(provider: ProviderDefinition, tier: 'high' | 'fa
   }
 }
 
+/** Max models selected by default after a refresh. */
+export const MAX_DEFAULT_SELECTED = 5
+
+/** De-duped catalogue preset ids for a provider (high + fast tier suggestions). */
+function presetIds(provider: ProviderDefinition | undefined): string[] {
+  if (!provider) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const m of [...provider.highTierModels, ...provider.fastTierModels]) {
+    if (!seen.has(m.id)) {
+      out.push(m.id)
+      seen.add(m.id)
+    }
+  }
+  return out
+}
+
+/** Human label for a model id — the catalogue preset label if known, else the id. */
+export function modelLabelFor(provider: ProviderDefinition | undefined, id: string): string {
+  if (!provider) return id
+  const hit = [...provider.highTierModels, ...provider.fastTierModels].find((m) => m.id === id)
+  return hit?.label ?? id
+}
+
 /**
- * Suggested model presets for a provider, merged with any models discovered via
- * the Providers-tab refresh. Used to populate the Model Selection comboboxes.
+ * Default curated selection after a refresh: the provider's known preset models
+ * that are actually available, topped up from the discovered list to at most
+ * {@link MAX_DEFAULT_SELECTED}. Falls back to the first few discovered ids when
+ * no presets match (e.g. a local server with custom model names).
  */
-export function providerModelOptions(
-  provider: ProviderDefinition | undefined,
-  fetched: string[] | undefined
-): ModelPreset[] {
-  const presets = provider ? [...provider.highTierModels, ...provider.fastTierModels] : []
-  const seen = new Set(presets.map((m) => m.id))
-  const merged = [...presets]
-  for (const id of fetched ?? []) {
-    if (!seen.has(id)) {
-      merged.push({ id, label: id })
+export function defaultSelectedModels(provider: ProviderDefinition | undefined, fetched: string[]): string[] {
+  const available = new Set(fetched)
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const id of presetIds(provider)) {
+    if (available.has(id) && !seen.has(id)) {
+      out.push(id)
       seen.add(id)
     }
   }
-  return merged
+  for (const id of fetched) {
+    if (out.length >= MAX_DEFAULT_SELECTED) break
+    if (!seen.has(id)) {
+      out.push(id)
+      seen.add(id)
+    }
+  }
+  return out.slice(0, MAX_DEFAULT_SELECTED)
+}
+
+/**
+ * Models offered on the Model Selection tab for a provider:
+ *   - the curated subset chosen on the Providers tab, when present;
+ *   - otherwise the full discovered list;
+ *   - otherwise the catalogue preset ids (provider never refreshed).
+ */
+export function effectiveModelIds(
+  provider: ProviderDefinition | undefined,
+  account: { selectedModels?: string[]; fetchedModels?: string[] } | undefined
+): string[] {
+  if (account?.selectedModels?.length) return account.selectedModels
+  if (account?.fetchedModels?.length) return account.fetchedModels
+  return presetIds(provider)
 }
