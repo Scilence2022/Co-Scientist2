@@ -8,8 +8,7 @@ of specialized agents then generates, peer-reviews, debates, ranks, evolves, and
 synthesizes concrete strain-design strategies — with a clean, professional
 monitoring & management UI.
 
-> Not a web service. A self-contained desktop workstation that stores everything
-> locally.
+![Strain Co-Scientist — Dashboard](docs/screenshots/01_dashboard.png)
 
 ---
 
